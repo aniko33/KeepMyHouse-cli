@@ -78,12 +78,11 @@ impl DBManage {
 
         for (i, e) in self.db.iter().enumerate() {
             let i_string = i.to_string();
-            let password = "*".repeat(e.password.len());
             let tc = Vec::from([
                 i_string,
                 e.title.to_string(),
                 e.username.to_string(),
-                password.to_string(),
+                e.password.to_string(),
                 e.notes.to_string(),
             ]);
 
@@ -212,7 +211,10 @@ fn open_db(filename: &String, encryption: &String) {
             Err(_) => None,
         },
         Encryption::SALSA20 => Some(crypto::decrypt_database_salsa20(fbuffer, &password)),
-        Encryption::CHACHA20 => Some(crypto::decrypt_database_chacha20(fbuffer, &password)),
+        // Encryption::CHA
+        _ => {
+            return;
+        }
     };
 
     if decrypted_db.is_none() {
@@ -235,13 +237,11 @@ fn open_db(filename: &String, encryption: &String) {
         // Database interaction
         dbmanage.show();
 
-        let ans = match interactive::select(
-            vec!["Add", "Remove", "Modify", "Show password", "Save"],
-            "What do you want to do?",
-        ) {
-            Some(r) => r,
-            None => return,
-        };
+        let ans =
+            match interactive::select(vec!["Add", "Remove", "Modify"], "What do you want to do?") {
+                Some(r) => r,
+                None => return,
+            };
 
         match ans.to_lowercase().as_str() {
             "add" => {
@@ -256,43 +256,7 @@ fn open_db(filename: &String, encryption: &String) {
                     password: password_asked,
                     notes,
                 });
-            }
-            "remove" => {
-                let id = interactive::ask("ID:").unwrap().parse::<usize>().unwrap();
-                dbmanage.db.remove(id);
-            }
-            "modify" => {
-                let id = interactive::ask("ID:").unwrap().parse::<usize>().unwrap();
-                let id_selected = &mut dbmanage.db[id];
-                let title = interactive::ask("Titie").unwrap();
-                let username = interactive::ask("Username").unwrap();
-                let password = interactive::ask("Password").unwrap();
-                let notes = interactive::ask("Notes").unwrap();
 
-                if title.trim() != "" {
-                    id_selected.title = title;
-                }
-                if username.trim() != "" {
-                    id_selected.username = username;
-                }
-                if password != "" {
-                    id_selected.password = password;
-                }
-                if notes != "" {
-                    id_selected.notes = notes;
-                }
-            }
-            "show password" => {
-                let id = interactive::ask("ID:").unwrap().parse::<usize>().unwrap();
-                let id_selected = dbmanage.db.get(id).expect("don't exist");
-
-                println!("{}", id_selected.password);
-                print!("Press enter for continue");
-                std::io::stdout().flush().unwrap();
-                std::io::stdin().read_line(&mut String::new()).unwrap();
-                interactive::clear_screen();
-            }
-            "save" => {
                 let edb = match encryption_type {
                     Encryption::AES256GCM => {
                         crypto::encrypt_database_aes(&dbmanage.db, &password).unwrap()
@@ -312,9 +276,13 @@ fn open_db(filename: &String, encryption: &String) {
                     .write_all(edb.as_slice())
                     .unwrap();
             }
+            "remove" => {
+                let id = interactive::ask("ID:").unwrap().parse::<usize>().unwrap();
+                dbmanage.db.remove(id);
+            }
+            "modify" => {}
             _ => return,
         }
     }
 }
 
-fn transfer() {}
