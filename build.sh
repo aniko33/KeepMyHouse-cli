@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cargo build
-./target/debug/kmh-cli $@
+cargo build -r
+mv target/release/kmh-cli ./kmh
