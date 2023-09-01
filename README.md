@@ -1,7 +1,7 @@
 <div align=center>
   <h1>Keep My House (CLI)</h1>
-
   <p>AES-encrypted cli password manager, Chacha20 and Salsa20 with exclusive and crossplatform features</p>
+  <img width=900px src="https://github.com/aniko33/KeepMyHouse-cli/assets/76649588/7d82cf80-1b70-41ed-a556-00129b890a6d">
 </div>
 
 ## Features
@@ -41,13 +41,9 @@ Options:
   -h, --help  Print help
 ```
 
-
-
 ### Init new DB
 
 `kmh init mydb.kmh`
-
-
 
 Choose cryptography
 
@@ -58,7 +54,7 @@ Choose cryptography
   Chacha20-Poly1305
 ```
 
-Insert a new DB password
+Login using DB password
 
 ```textile
 ? Add a password: ******
@@ -76,7 +72,7 @@ Insert DB password
 [Ctrl + r for show password]
 ```
 
-Will now show you this interactive menu
+Welcome to the main menu, enjoy
 
 ```textile
 ID     Title       Username       Password         Notes
@@ -92,7 +88,7 @@ ID     Title       Username       Password         Notes
   Save
 ```
 
-## Show all encryptions
+## Encryption algorithms
 
 `kmh list -e`
 
