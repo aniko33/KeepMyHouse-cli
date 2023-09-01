@@ -21,8 +21,8 @@
 ### From source
 
 ```bash
-git clone <repo> && cd KeepMyHouse-cli
-chmod +x build.sh && ./build
+git clone https://github.com/aniko33/KeepMyHouse-cli && cd KeepMyHouse-cli
+chmod +x build.sh && ./build.sh
 sudo mv kmh-cli /usr/bin/kmh
 ```
 
