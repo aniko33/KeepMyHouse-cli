@@ -286,3 +286,5 @@ fn open_db(filename: &String, encryption: &String) {
     }
 }
 
+
+//Guess i'll die 
