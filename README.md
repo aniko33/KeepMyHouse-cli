@@ -107,6 +107,7 @@ ID     Title       Username       Password         Notes
 This repository is licensed under GPL v3.0 for information look at the file ["LICENSE"](LICENSE)
 
 ## Contributors
+
 <a href="https://github.com/aniko33/KeepMyHouse-cli/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=aniko33/KeepMyHouse-cli"/>
 </a>
