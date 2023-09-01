@@ -340,5 +340,3 @@ fn open_db(filename: &String, encryption: &String) {
         interactive::clear_screen();
     }
 }
-
-fn transfer() {}
