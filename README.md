@@ -105,10 +105,3 @@ ID     Title       Username       Password         Notes
 ## License
 
 This repository is licensed under GPL v3.0 for information look at the file ["LICENSE"](LICENSE)
-
-## Contributors
-
-<a href="https://github.com/aniko33/KeepMyHouse-cli/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=aniko33/KeepMyHouse-cli" />
-</a>
-
