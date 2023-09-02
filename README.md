@@ -1,6 +1,6 @@
 <div align=center>
   <h1>Keep My House (CLI)</h1>
-  <p>AES-encrypted cli password manager, Chacha20 and Salsa20 with exclusive and crossplatform features</p>
+  <p>CLI password manager with encryption: AES256, Salsa20 and Chacha20, with cross platform and exclusive features</p>
   <img width=900px src="https://github.com/aniko33/KeepMyHouse-cli/assets/76649588/2ba0e24f-bfee-4a92-9d83-69a27b698c6c">
 </div>
 
