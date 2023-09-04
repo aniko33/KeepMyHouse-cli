@@ -17,3 +17,4 @@ colored = "2.0.4"
 salsa20 = "0.10.2"
 chacha20 = "0.9.1"
 arboard = { version = "3.2.1", features = ["wayland-data-control"] }
+rand = "0.8.5"

@@ -8,13 +8,19 @@
 
 - AES256 GCM, Salsa20, Chacha20
 
+- Crossplatform (Windows, Linux, MacOS tested)
+
 - Add, remove, modify mode
+
+- Login available with keyfile
 
 - Copy password to clipboard
 
 - Only offline mode
 
 - No-SQL database (using JSON format)
+  
+  
 
 ## Installation
 
@@ -45,6 +51,18 @@ Options:
 
 `kmh init mydb.kmh`
 
+
+
+Choose whether to have a password or a keyfile 
+
+```textile
+? What type of login do you want to use?
+➤ Password
+  File
+```
+
+
+
 Choose cryptography
 
 ```textile
@@ -54,16 +72,37 @@ Choose cryptography
   Chacha20-Poly1305
 ```
 
-Login using DB password
+
+
+Create a password 
 
 ```textile
 ? Add a password: ******
 [Ctrl + r for show password]
 ```
 
+Or choose the size of the file (the bigger the better)
+
+```textile
+? Keyfile size 
+➤ 1024
+  2048
+  4096
+```
+
+Choose the name of the keyfile
+
+```textile
+choose the name of the file: mykeyfile.private
+```
+
+
+
 ### Open DB
 
 `kmh open mydb.kmh -e <encryption>`
+
+For those who have a keyfile: `kmh open mydb.kmh -e <encryption> --file`
 
 Insert DB password
 
@@ -71,6 +110,14 @@ Insert DB password
 ? password: ******
 [Ctrl + r for show password]
 ```
+
+Or insert keyfile path
+
+```textile
+? Insert keyfile path: mykeyfile.private
+```
+
+
 
 Welcome to the main menu, enjoy
 

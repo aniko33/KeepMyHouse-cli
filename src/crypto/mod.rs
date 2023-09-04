@@ -2,15 +2,23 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Error, Key, Nonce,
 };
+use chacha20::ChaCha20;
+use rand::Rng;
 use ring::digest::{digest, SHA256};
 use salsa20::{
     cipher::{KeyIvInit, StreamCipher, StreamCipherSeek},
     Salsa20,
 };
 
-use chacha20::ChaCha20;
-
 use crate::JsonDatabseKMH;
+
+pub fn generate_random_utf8(size: usize) -> Vec<u8> {
+    let rand_string: String = rand::thread_rng()
+        .sample_iter::<char, _>(rand::distributions::Standard)
+        .take(size)
+        .collect();
+    rand_string.as_bytes().to_vec()
+}
 
 pub fn encrypt_database_aes(db: &Vec<JsonDatabseKMH>, password: &String) -> Result<Vec<u8>, Error> {
     let password_hashed: [u8; 32] = digest(&SHA256, password.as_bytes())
