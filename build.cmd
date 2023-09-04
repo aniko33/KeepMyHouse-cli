@@ -1,2 +1,2 @@
 cargo build -r
-mv target/release/kmh-cli .
+move target/release/kmh-cli .
