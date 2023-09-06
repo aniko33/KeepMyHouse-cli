@@ -32,6 +32,8 @@ chmod +x build.sh && ./build.sh
 sudo mv kmh-cli /usr/bin/kmh
 ```
 
+### [From binary](https://github.com/aniko33/KeepMyHouse-cli/releases)
+
 ## Usage
 
 ```bash
