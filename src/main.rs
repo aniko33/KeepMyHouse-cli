@@ -2,6 +2,8 @@ use std::{
     fs,
     io::{Read, Write},
 };
+use csv;
+use std::io;
 
 use arboard::Clipboard;
 use clap::{Args, Parser, Subcommand};
@@ -24,6 +26,9 @@ enum Actions {
     Open(Opendb),
     /// List of elements
     List(ListCmd),
+    /// Export db
+    Export(Export)
+
 }
 
 #[derive(Args)]
@@ -45,6 +50,13 @@ struct Opendb {
 struct ListCmd {
     #[arg(short)]
     encryption: bool,
+}
+
+#[derive(Args)]
+struct Export {
+    filename: String,
+    #[arg(short, long)]
+    format: String
 }
 
 #[derive(Args)]
@@ -72,6 +84,12 @@ enum Encryption {
 enum LoginType {
     PASSWORD,
     FILE,
+}
+
+#[derive(Debug)]
+enum FormatExport {
+    CSV,
+    
 }
 
 #[derive(Clone)]
@@ -123,6 +141,10 @@ fn main() {
             if list.encryption {
                 interactive::tree_classic("Encryption list", all_encryptions);
             }
+        }
+        Actions::Export(export) => {
+            //export_db();
+            
         }
     }
 
@@ -189,11 +211,36 @@ fn encrypt_database_file(encryption: Encryption, password_file: Vec<u8>, filenam
     }
 }
 
+fn decrypt_database(encryption: &Encryption, password: &String, db: Vec<u8>) -> Vec<JsonDatabseKMH>{
+    let decrypted_db = match encryption {
+        Encryption::AES256GCM => match crypto::decrypt_database_aes(db, &password) {
+            Ok(r) => Some(r),
+            Err(_) => None,
+        },
+        Encryption::SALSA20 => Some(crypto::decrypt_database_salsa20(db, &password)),
+        Encryption::CHACHA20 => Some(crypto::decrypt_database_chacha20(db, &password)),
+    };
+
+    // Deserialize DB
+    let json_db: Vec<JsonDatabseKMH> = serde_json::from_str(
+        String::from_utf8(decrypted_db.unwrap())
+            .expect("Bytes to String failed")
+            .as_str(),
+    )
+    .expect("Invalid JSON format");
+
+    json_db
+}
+
 fn check_for_modify(str: &str) -> Option<String> {
     if str.trim() != "" {
         return Some(str.to_string());
     }
     return None;
+}
+
+fn export_db(filename: &String, format: &String) {
+
 }
 
 fn init_db(filename: &String) {
@@ -357,27 +404,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
         }
     };
 
-    let decrypted_db = match encryption_type {
-        Encryption::AES256GCM => match crypto::decrypt_database_aes(fbuffer, &password) {
-            Ok(r) => Some(r),
-            Err(_) => None,
-        },
-        Encryption::SALSA20 => Some(crypto::decrypt_database_salsa20(fbuffer, &password)),
-        Encryption::CHACHA20 => Some(crypto::decrypt_database_chacha20(fbuffer, &password)),
-    };
-
-    if decrypted_db.is_none() {
-        println!("Password invalid");
-        return;
-    }
-
-    // Deserialize DB
-    let json_db: Vec<JsonDatabseKMH> = serde_json::from_str(
-        String::from_utf8(decrypted_db.unwrap())
-            .expect("Bytes to String failed")
-            .as_str(),
-    )
-    .expect("Invalid JSON format");
+    let json_db = decrypt_database(&encryption_type, &password, fbuffer);
 
     // Init DB
     let mut dbmanage = DBManage { db: json_db };
@@ -394,6 +421,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                 "Show password",
                 "Copy password",
                 "Save",
+                "Export in csv",
             ],
             "What do you want to do?",
         ) {
@@ -462,7 +490,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                 clipboard.set_text(id_selected.password).unwrap()
             }
             "save" => {
-                let edb = match encryption_type {
+                let edb = match &encryption_type {
                     Encryption::AES256GCM => {
                         crypto::encrypt_database_aes(&dbmanage.db, &password).unwrap()
                     }
@@ -480,6 +508,14 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                     .unwrap()
                     .write_all(edb.as_slice())
                     .unwrap();
+            }
+            "export in csv" => {
+                let mut wtr = csv::Writer::from_writer(io::stdout());
+                //TODO: inserire i valori per convertire in csv
+                for record in &dbmanage.db{
+                    wtr.write_record(vec![&record.title, &record.notes]).expect("ops");
+                }
+                wtr.flush().expect("ops");
             }
             _ => return,
         }
