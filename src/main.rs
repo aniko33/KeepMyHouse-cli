@@ -1,11 +1,8 @@
-use std::{
+ use std::{
     fs,
     io::{Read, Write},
 };
-use csv;
-use std::io;
 
-use arboard::Clipboard;
 use clap::{Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
@@ -26,9 +23,8 @@ enum Actions {
     Open(Opendb),
     /// List of elements
     List(ListCmd),
-    /// Export db
-    Export(Export)
-
+    /// Transfer your database file
+    Transfer(Tnf),
 }
 
 #[derive(Args)]
@@ -41,8 +37,6 @@ struct Opendb {
     filename: String,
     #[arg(short)]
     encryption: String,
-    #[arg(long)]
-    file: bool,
 }
 
 #[derive(Args)]
@@ -50,13 +44,6 @@ struct Opendb {
 struct ListCmd {
     #[arg(short)]
     encryption: bool,
-}
-
-#[derive(Args)]
-struct Export {
-    filename: String,
-    #[arg(short, long)]
-    format: String
 }
 
 #[derive(Args)]
@@ -78,18 +65,6 @@ enum Encryption {
     AES256GCM,
     SALSA20,
     CHACHA20,
-}
-
-#[derive(Debug)]
-enum LoginType {
-    PASSWORD,
-    FILE,
-}
-
-#[derive(Debug)]
-enum FormatExport {
-    CSV,
-    
 }
 
 #[derive(Clone)]
@@ -134,7 +109,7 @@ fn main() {
         }
 
         Actions::Open(open) => {
-            open_db(&open.filename, &open.encryption, open.file);
+            open_db(&open.filename, &open.encryption);
         }
 
         Actions::List(list) => {
@@ -142,118 +117,13 @@ fn main() {
                 interactive::tree_classic("Encryption list", all_encryptions);
             }
         }
-        Actions::Export(export) => {
-            //export_db();
-            
-        }
+        Actions::Transfer(transfer) => {}
     }
 
     return;
 }
 
-fn encrypt_database_password(encryption: Encryption, password: &String, filename: &String) {
-    match encryption {
-        Encryption::AES256GCM => {
-            let out = crypto::encrypt_database_aes(&vec![], &password).unwrap();
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::SALSA20 => {
-            let out = crypto::encrypt_database_salsa20(&vec![], &password);
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::CHACHA20 => {
-            let out = crypto::encrypt_database_chacha20(&vec![], &password);
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-    }
-}
-
-fn encrypt_database_file(encryption: Encryption, password_file: Vec<u8>, filename: &String) {
-    match encryption {
-        Encryption::AES256GCM => {
-            let out =
-                crypto::encrypt_database_aes(&vec![], &String::from_utf8(password_file).unwrap())
-                    .unwrap();
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::SALSA20 => {
-            let out = crypto::encrypt_database_salsa20(
-                &vec![],
-                &String::from_utf8(password_file).unwrap(),
-            );
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::CHACHA20 => {
-            let out = crypto::encrypt_database_chacha20(
-                &vec![],
-                &String::from_utf8(password_file).unwrap(),
-            );
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-    }
-}
-
-fn decrypt_database(encryption: &Encryption, password: &String, db: Vec<u8>) -> Vec<JsonDatabseKMH>{
-    let decrypted_db = match encryption {
-        Encryption::AES256GCM => match crypto::decrypt_database_aes(db, &password) {
-            Ok(r) => Some(r),
-            Err(_) => None,
-        },
-        Encryption::SALSA20 => Some(crypto::decrypt_database_salsa20(db, &password)),
-        Encryption::CHACHA20 => Some(crypto::decrypt_database_chacha20(db, &password)),
-    };
-
-    // Deserialize DB
-    let json_db: Vec<JsonDatabseKMH> = serde_json::from_str(
-        String::from_utf8(decrypted_db.unwrap())
-            .expect("Bytes to String failed")
-            .as_str(),
-    )
-    .expect("Invalid JSON format");
-
-    json_db
-}
-
-fn check_for_modify(str: &str) -> Option<String> {
-    if str.trim() != "" {
-        return Some(str.to_string());
-    }
-    return None;
-}
-
-fn export_db(filename: &String, format: &String) {
-
-}
-
 fn init_db(filename: &String) {
-    let type_form = match interactive::select(
-        vec!["Password", "File"],
-        "What type of login do you want to use?",
-    ) {
-        Some(r) => r,
-        None => {
-            return;
-        }
-    };
-
     let ans = match interactive::select(
         vec!["AES256 GCM", "Salsa20", "Chacha20-Poly1305"],
         "Which cryptography do you want to use?",
@@ -264,78 +134,42 @@ fn init_db(filename: &String) {
         }
     };
 
-    // data = size of keufile or password
-    let (logintype, data) = match type_form.as_str() {
-        "password" => {
-            let password = match interactive::ask_password("Add a password:", true) {
-                Some(r) => r,
-                None => {
-                    return;
-                }
-            };
-            (LoginType::PASSWORD, password)
-        }
-        "file" => {
-            let size_file = match interactive::select(vec!["1024", "2048", "4096"], "Keyfile size")
-            {
-                Some(r) => r,
-                None => {
-                    return;
-                }
-            };
-            (LoginType::FILE, size_file)
-        }
-        _ => {
+    let password = match interactive::ask_password("Add a password:", true) {
+        Some(r) => r,
+        None => {
             return;
         }
     };
 
-    match logintype {
-        LoginType::PASSWORD => match ans.as_str() {
-            "aes256 gcm" => {
-                encrypt_database_password(Encryption::AES256GCM, &data, filename);
-            }
-            "salsa20" => {
-                encrypt_database_password(Encryption::SALSA20, &data, filename);
-            }
-            "chacha20-poly1305" => {
-                encrypt_database_password(Encryption::CHACHA20, &data, filename);
-            }
-            _ => (),
-        },
-        LoginType::FILE => {
-            let size: usize = data.parse().unwrap();
-            let keyfile_filename = match interactive::ask("Insert keyfile name:") {
-                Some(r) => r,
-                None => {
-                    return;
-                }
-            };
-
-            let keycontent = crypto::generate_random_utf8(size);
-
-            fs::File::create(keyfile_filename)
+    match ans.as_str() {
+        "aes256 gcm" => {
+            let out = crypto::encrypt_database_aes(&vec![], &password).unwrap();
+            fs::File::create(filename)
                 .unwrap()
-                .write_all(keycontent.as_slice())
+                .write_all(out.as_slice())
                 .unwrap();
-
-            match ans.as_str() {
-                "aes256 gcm" => {
-                    encrypt_database_file(Encryption::AES256GCM, keycontent, filename);
-                }
-                "salsa20" => {
-                    encrypt_database_file(Encryption::SALSA20, keycontent, filename);
-                }
-                "chacha20-poly1305" => {
-                    encrypt_database_file(Encryption::CHACHA20, keycontent, filename);
-                }
-                _ => (),
-            }
         }
+        "salsa20" => {
+            let out = crypto::encrypt_database_salsa20(&vec![], &password);
+            fs::File::create(filename)
+                .unwrap()
+                .write_all(out.as_slice())
+                .unwrap();
+        }
+        "chacha20-poly1305" => (),
+        _ => (),
     }
 }
 
-fn open_db(filename: &String, encryption: &String, keyfile: bool) {
+fn check_for_modify(str: &str) -> Option<String>{
+    if str.trim() != ""{
+       return Some(str.to_string()); 
+       
+    }
+    return None
+}
+
+fn open_db(filename: &String, encryption: &String) {
     let mut fbuffer = Vec::new();
 
     let encryption_type = match encryption.to_lowercase().as_str() {
@@ -372,39 +206,35 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
         }
     };
 
-    let password: String = if keyfile {
-        let mut filebuf = Vec::new();
-
-        let keyfile_path = match interactive::ask("Insert keyfile path:") {
-            Some(r) => r,
-            None => {
-                return;
-            }
-        };
-        match fs::metadata(&keyfile_path) {
-            Ok(_) => (),
-            Err(e) => {
-                println!("Error: {}", e);
-                return;
-            }
-        }
-        fs::File::open(&keyfile_path)
-            .unwrap()
-            .read_to_end(&mut filebuf)
-            .unwrap();
-
-        String::from_utf8(filebuf).unwrap()
-    } else {
-        // Get password
-        match interactive::ask_password("password:", false) {
-            Some(r) => r,
-            None => {
-                return;
-            }
+    // Get password
+    let password = match interactive::ask_password("password:", false) {
+        Some(r) => r,
+        None => {
+            return;
         }
     };
 
-    let json_db = decrypt_database(&encryption_type, &password, fbuffer);
+    let decrypted_db = match encryption_type {
+        Encryption::AES256GCM => match crypto::decrypt_database_aes(fbuffer, &password) {
+            Ok(r) => Some(r),
+            Err(_) => None,
+        },
+        Encryption::SALSA20 => Some(crypto::decrypt_database_salsa20(fbuffer, &password)),
+        Encryption::CHACHA20 => Some(crypto::decrypt_database_chacha20(fbuffer, &password)),
+    };
+
+    if decrypted_db.is_none() {
+        println!("Password invalid");
+        return;
+    }
+
+    // Deserialize DB
+    let json_db: Vec<JsonDatabseKMH> = serde_json::from_str(
+        String::from_utf8(decrypted_db.unwrap())
+            .expect("Bytes to String failed")
+            .as_str(),
+    )
+    .expect("Invalid JSON format");
 
     // Init DB
     let mut dbmanage = DBManage { db: json_db };
@@ -414,15 +244,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
         dbmanage.show();
 
         let ans = match interactive::select(
-            vec![
-                "Add",
-                "Remove",
-                "Modify",
-                "Show password",
-                "Copy password",
-                "Save",
-                "Export in csv",
-            ],
+            vec!["Add", "Remove", "Modify", "Show password", "Save"],
             "What do you want to do?",
         ) {
             Some(r) => r,
@@ -433,7 +255,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
             "add" => {
                 let title = interactive::ask("Title:").unwrap();
                 let username = interactive::ask("Username:").unwrap();
-                let password_asked = interactive::ask_password("Password:", true).unwrap();
+                let password_asked = interactive::ask("Password:").unwrap();
                 let notes = interactive::ask("Notes:").unwrap();
 
                 dbmanage.db.push(JsonDatabseKMH {
@@ -452,25 +274,13 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                 let id_selected = &mut dbmanage.db[id];
                 let title = interactive::ask("Titie").unwrap();
                 let username = interactive::ask("Username").unwrap();
-                let password = interactive::ask_password("Password", true).unwrap();
+                let password = interactive::ask("Password").unwrap();
                 let notes = interactive::ask("Notes").unwrap();
 
-                match check_for_modify(title.as_str()) {
-                    Some(r) => id_selected.title = r,
-                    None => (),
-                };
-                match check_for_modify(username.as_str()) {
-                    Some(r) => id_selected.username = r,
-                    None => (),
-                }
-                match check_for_modify(password.as_str()) {
-                    Some(r) => id_selected.password = r,
-                    None => (),
-                }
-                match check_for_modify(notes.as_str()) {
-                    Some(r) => id_selected.notes = r,
-                    None => (),
-                }
+                id_selected.title = check_for_modify(title.as_str()).unwrap();
+                id_selected.username = check_for_modify(username.as_str()).unwrap();
+                id_selected.password = check_for_modify(password.as_str()).unwrap();
+                id_selected.notes = check_for_modify(password.as_str()).unwrap();
             }
             "show password" => {
                 let id = interactive::ask("ID:").unwrap().parse::<usize>().unwrap();
@@ -480,17 +290,10 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                 print!("Press enter for continue");
                 std::io::stdout().flush().unwrap();
                 std::io::stdin().read_line(&mut String::new()).unwrap();
-            }
-            "copy password" => {
-                let mut clipboard = Clipboard::new().unwrap();
-
-                let id = interactive::ask("ID:").unwrap().parse::<usize>().unwrap();
-                let id_selected = dbmanage.db.get(id).expect("don't exist").to_owned();
-
-                clipboard.set_text(id_selected.password).unwrap()
+                interactive::clear_screen();
             }
             "save" => {
-                let edb = match &encryption_type {
+                let edb = match encryption_type {
                     Encryption::AES256GCM => {
                         crypto::encrypt_database_aes(&dbmanage.db, &password).unwrap()
                     }
@@ -509,16 +312,9 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                     .write_all(edb.as_slice())
                     .unwrap();
             }
-            "export in csv" => {
-                let mut wtr = csv::Writer::from_writer(io::stdout());
-                //TODO: inserire i valori per convertire in csv
-                for record in &dbmanage.db{
-                    wtr.write_record(vec![&record.title, &record.notes]).expect("ops");
-                }
-                wtr.flush().expect("ops");
-            }
             _ => return,
         }
-        interactive::clear_screen();
     }
 }
+
+fn transfer() {}
