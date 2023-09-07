@@ -10,13 +10,15 @@
 
 - Crossplatform (Windows, Linux, MacOS tested)
 
+- Export to CSV
+
 - Add, remove, modify mode
 
 - Login available with keyfile
 
 - Copy password to clipboard
 
-- Only offline mode
+- Offline mode
 
 - No-SQL database (using JSON format)
   
