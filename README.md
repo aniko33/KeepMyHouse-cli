@@ -21,8 +21,6 @@
 - Offline mode
 
 - No-SQL database (using JSON format)
-  
-  
 
 ## Installation
 
@@ -42,10 +40,11 @@ sudo mv kmh-cli /usr/bin/kmh
 Usage: kmh-cli <COMMAND>
 
 Commands:
-  init  Create new database
-  open  Open a database
-  list  List of elements
-  help  Print this message or the help of the given subcommand(s)
+  init    Create new database
+  open    Open a database
+  list    List of elements
+  export  Export db
+  help    Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -54,8 +53,6 @@ Options:
 ### Init new DB
 
 `kmh init mydb.kmh`
-
-
 
 Choose whether to have a password or a keyfile 
 
@@ -66,7 +63,6 @@ Choose whether to have a password or a keyfile
 ```
 
 
-
 Choose cryptography
 
 ```textile
@@ -75,8 +71,6 @@ Choose cryptography
   Salsa20
   Chacha20-Poly1305
 ```
-
-
 
 Create a password 
 
@@ -100,7 +94,22 @@ Choose the name of the keyfile
 choose the name of the file: mykeyfile.private
 ```
 
+### Export DB
 
+`kmh export --format <format> -e <encryption> mydb.kmh mycsv.csv`
+
+For those who have a keyfile: `kmh export --format <format> -e <encryption> -k mydb.kmh mycsv.csv`
+
+Insert DB password
+```
+? password: *******
+[Ctrl + r for show password]
+```
+
+Or insert keyfile path
+```textile
+? Insert keyfile path: mykeyfile.private
+```
 
 ### Open DB
 
@@ -151,6 +160,15 @@ ID     Title       Username       Password         Notes
    ├── [ salsa20 ]
    |
    └── [ chacha20 ]
+```
+
+## Export formats
+
+`kmh list -f`
+```textile
+   Export format list
+   |
+   └── [ csv ]
 ```
 
 ## License
