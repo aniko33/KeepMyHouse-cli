@@ -1,12 +1,14 @@
 use std::{
     fs,
-    io::{Read, Write}, process,
+    io::{Read, Write},
+    process,
 };
 
 use arboard::Clipboard;
-use clap::{Args, Parser, Subcommand};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 
+mod cli;
 mod crypto;
 mod export;
 mod interactive;
@@ -14,61 +16,7 @@ mod interactive;
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
-    command: Actions,
-}
-
-#[derive(Subcommand)]
-enum Actions {
-    /// Create new database
-    Init(Init),
-    /// Open a database
-    Open(Opendb),
-    /// List of elements
-    List(ListCmd),
-    /// Export db
-    Export(Export)
-
-}
-
-#[derive(Args)]
-struct Init {
-    filename: String,
-}
-
-#[derive(Args)]
-struct Opendb {
-    filename: String,
-    #[arg(short)]
-    encryption: String,
-    #[arg(long)]
-    file: bool,
-}
-
-#[derive(Args)]
-#[group(required = true, multiple = false)]
-struct ListCmd {
-    #[arg(short)]
-    encryption: bool,
-    #[arg(short)]
-    formatexport: bool,
-}
-
-#[derive(Args)]
-struct Export {
-    input: String,
-    output: String,
-    #[arg(short, long)]
-    format: String,
-    #[arg(short)]
-    encryption: String,
-    #[arg(short, long)]
-    keyfile: bool,
-}
-
-#[derive(Args)]
-struct Tnf {
-    #[arg(short)]
-    protocol: String,
+    command: cli::Actions,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -100,6 +48,12 @@ enum FormatExport {
 pub struct DBManage {
     db: Vec<JsonDatabseKMH>,
 }
+
+const E_ENCRYPTION_TYPE_DONT_EXIST: &str =
+    "This encryption don't exist :(, use: `kmh list -e` for show available encryptions";
+
+const E_FORMAT_TYPE_DONT_EXIST: &str =
+    "This encryption don't exist :(, use: `kmh list -e` for show available encryptions";
 
 impl DBManage {
     fn show(&self) {
@@ -134,15 +88,15 @@ fn main() {
     let all_formats = vec!["csv"];
 
     match &cli.command {
-        Actions::Init(init) => {
+        cli::Actions::Init(init) => {
             init_db(&init.filename);
         }
 
-        Actions::Open(open) => {
+        cli::Actions::Open(open) => {
             open_db(&open.filename, &open.encryption, open.file);
         }
 
-        Actions::List(list) => {
+        cli::Actions::List(list) => {
             if list.encryption {
                 interactive::tree_classic("Encryption list", all_encryptions);
             }
@@ -150,9 +104,14 @@ fn main() {
                 interactive::tree_classic("Export format list", all_formats);
             }
         }
-        Actions::Export(export) => {
-            export_db(&export.input, &export.output, &export.format, &export.encryption, export.keyfile);
-            
+        cli::Actions::Export(export) => {
+            export_db(
+                &export.input,
+                &export.output,
+                &export.format,
+                &export.encryption,
+                export.keyfile,
+            );
         }
     }
 
@@ -219,7 +178,11 @@ fn encrypt_database_file(encryption: Encryption, password_file: Vec<u8>, filenam
     }
 }
 
-fn decrypt_database(encryption: &Encryption, password: &String, db: Vec<u8>) -> Vec<JsonDatabseKMH>{
+fn decrypt_database(
+    encryption: &Encryption,
+    password: &String,
+    db: Vec<u8>,
+) -> Vec<JsonDatabseKMH> {
     let decrypted_db = match encryption {
         Encryption::AES256GCM => match crypto::decrypt_database_aes(db, &password) {
             Ok(r) => Some(r),
@@ -249,13 +212,11 @@ fn check_for_modify(str: &str) -> Option<String> {
 
 fn export_db(input: &String, output: &String, format: &String, encryption: &String, keyfile: bool) {
     let mut fbuffer = Vec::new();
-    
+
     let fileformat = match format.to_lowercase().as_str() {
-        "csv" => {
-            FormatExport::CSV
-        },
+        "csv" => FormatExport::CSV,
         _ => {
-            println!("This format don't exist ¯\\_( ͡° ͜ʖ ͡°)_/¯");
+            eprintln!("{}", E_FORMAT_TYPE_DONT_EXIST);
             return;
         }
     };
@@ -265,14 +226,14 @@ fn export_db(input: &String, output: &String, format: &String, encryption: &Stri
         "salsa20" => Encryption::SALSA20,
         "chacha20" => Encryption::CHACHA20,
         _ => {
-            println!("This encryption don't exist :(");
+            eprintln!("{}", E_ENCRYPTION_TYPE_DONT_EXIST);
             return;
         }
     };
 
     // Check if exist
     if fs::metadata(input).is_err() {
-        println!("File not found");
+        eprintln!("File not found");
         return;
     }
 
@@ -306,7 +267,7 @@ fn export_db(input: &String, output: &String, format: &String, encryption: &Stri
         match fs::metadata(&keyfile_path) {
             Ok(_) => (),
             Err(e) => {
-                println!("Error: {}", e);
+                eprintln!("Error: {}", e);
                 return;
             }
         }
@@ -334,7 +295,6 @@ fn export_db(input: &String, output: &String, format: &String, encryption: &Stri
     match fileformat {
         FormatExport::CSV => export::csv_export(&dbmanage, output),
     }
-
 }
 
 fn init_db(filename: &String) {
@@ -437,14 +397,14 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
         "salsa20" => Encryption::SALSA20,
         "chacha20" => Encryption::CHACHA20,
         _ => {
-            println!("This encryption don't exist :(");
+            eprintln!("{}", E_ENCRYPTION_TYPE_DONT_EXIST);
             return;
         }
     };
 
     // Check if exist
     if fs::metadata(filename).is_err() {
-        println!("File not found");
+        eprintln!("File not found");
         return;
     }
 
@@ -452,7 +412,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
     let mut hfile = match fs::File::open(filename) {
         Ok(r) => r,
         Err(e) => {
-            println!("{}", e);
+            eprintln!("{}", e);
             return;
         }
     };
@@ -516,7 +476,7 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
                 "Copy password",
                 "Save",
                 "Export in csv",
-                "Exit"
+                "Exit",
             ],
             "What do you want to do?",
         ) {
@@ -611,8 +571,8 @@ fn open_db(filename: &String, encryption: &String, keyfile: bool) {
             "exit" => {
                 println!("Exiting...");
                 process::exit(0);
-            },
-            _ => return
+            }
+            _ => return,
         }
         interactive::clear_screen();
     }
