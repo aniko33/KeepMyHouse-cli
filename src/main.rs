@@ -6,6 +6,7 @@ use std::{
 
 use arboard::Clipboard;
 use clap::Parser;
+use crypto::{encrypt_database_aes, encrypt_database_chacha20, encrypt_database_salsa20};
 use serde::{Deserialize, Serialize};
 
 mod cli;
@@ -116,66 +117,6 @@ fn main() {
     }
 
     return;
-}
-
-fn encrypt_database_password(encryption: Encryption, password: &String, filename: &String) {
-    match encryption {
-        Encryption::AES256GCM => {
-            let out = crypto::encrypt_database_aes(&vec![], &password).unwrap();
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::SALSA20 => {
-            let out = crypto::encrypt_database_salsa20(&vec![], &password);
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::CHACHA20 => {
-            let out = crypto::encrypt_database_chacha20(&vec![], &password);
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-    }
-}
-
-fn encrypt_database_file(encryption: Encryption, password_file: Vec<u8>, filename: &String) {
-    match encryption {
-        Encryption::AES256GCM => {
-            let out =
-                crypto::encrypt_database_aes(&vec![], &String::from_utf8(password_file).unwrap())
-                    .unwrap();
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::SALSA20 => {
-            let out = crypto::encrypt_database_salsa20(
-                &vec![],
-                &String::from_utf8(password_file).unwrap(),
-            );
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-        Encryption::CHACHA20 => {
-            let out = crypto::encrypt_database_chacha20(
-                &vec![],
-                &String::from_utf8(password_file).unwrap(),
-            );
-            fs::File::create(filename)
-                .unwrap()
-                .write_all(out.as_slice())
-                .unwrap();
-        }
-    }
 }
 
 fn decrypt_database(
@@ -297,7 +238,7 @@ fn export_db(input: &String, output: &String, format: &String, encryption: &Stri
     }
 }
 
-fn init_db(filename: &String) {
+fn init_db(db_filename: &String) {
     let type_form = match interactive::select(
         vec!["Password", "File"],
         "What type of login do you want to use?",
@@ -344,49 +285,39 @@ fn init_db(filename: &String) {
         }
     };
 
-    match logintype {
-        LoginType::PASSWORD => match ans.as_str() {
-            "aes256 gcm" => {
-                encrypt_database_password(Encryption::AES256GCM, &data, filename);
+    let password = if matches!(logintype, LoginType::FILE) {
+        let size: usize = data.parse().unwrap();
+        let keyfile_filename = match interactive::ask("Insert keyfile name:") {
+            Some(r) => r,
+            None => {
+                return;
             }
-            "salsa20" => {
-                encrypt_database_password(Encryption::SALSA20, &data, filename);
-            }
-            "chacha20-poly1305" => {
-                encrypt_database_password(Encryption::CHACHA20, &data, filename);
-            }
-            _ => (),
-        },
-        LoginType::FILE => {
-            let size: usize = data.parse().unwrap();
-            let keyfile_filename = match interactive::ask("Insert keyfile name:") {
-                Some(r) => r,
-                None => {
-                    return;
-                }
-            };
+        };
 
-            let keycontent = crypto::generate_random_utf8(size);
+        let keycontent = crypto::generate_random_utf8(size);
 
-            fs::File::create(keyfile_filename)
-                .unwrap()
-                .write_all(keycontent.as_slice())
-                .unwrap();
+        fs::File::create(keyfile_filename)
+            .unwrap()
+            .write_all(keycontent.as_slice())
+            .unwrap();
+        String::from_utf8(keycontent).unwrap()
+    } else {
+        data
+    };
 
-            match ans.as_str() {
-                "aes256 gcm" => {
-                    encrypt_database_file(Encryption::AES256GCM, keycontent, filename);
-                }
-                "salsa20" => {
-                    encrypt_database_file(Encryption::SALSA20, keycontent, filename);
-                }
-                "chacha20-poly1305" => {
-                    encrypt_database_file(Encryption::CHACHA20, keycontent, filename);
-                }
-                _ => (),
-            }
+    let db_encrypted = match ans.as_str() {
+        "aes256 gcm" => encrypt_database_aes(&vec![], &password).unwrap(),
+        "salsa20" => encrypt_database_salsa20(&vec![], &password),
+        "chacha20-poly1305" => encrypt_database_chacha20(&vec![], &password),
+        _ => {
+            panic!("Answer not managed");
         }
-    }
+    };
+
+    fs::File::create(db_filename)
+        .unwrap()
+        .write(&db_encrypted)
+        .unwrap();
 }
 
 fn open_db(filename: &String, encryption: &String, keyfile: bool) {
